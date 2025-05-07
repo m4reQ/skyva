@@ -1,0 +1,52 @@
+services:
+  mqtt-bridge:
+    build: ./mqtt
+    env_file: .env
+    depends_on:
+      mqtt:
+        condition: service_started
+        restart: true
+      db:
+        condition: service_healthy
+        restart: true
+
+  mqtt:
+    image: eclipse-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:rw
+      - ./mosquitto/data:/mosquitto/data:rw
+      - ./mosquitto/log:/mosquitto/log:rw
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    expose:
+      - "3306"
+    volumes:
+      - ./db:/var/lib/mysql:rw
+    env_file: .env
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "db"]
+      timeout: 5s
+      retries: 10
+
+volumes:
+  config:
+  data:
+  log:
+  db:
