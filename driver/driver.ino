@@ -60,15 +60,16 @@ static Adafruit_CCS811 s_CCS;
 
 static unsigned long s_ParticleSensorLowPulseLength = 0;
 
-static SensorStatus retrieveParticleSensorData(float* result)
+static SensorStatus retrieveParticleSensorData(float *result)
 {
   const float ratio = (float)s_ParticleSensorLowPulseLength / ((float)SENSOR_READ_THRESHOLD_MS * 10.0f);
-  *result = 1.1f * pow(ratio, 3) - 3.8f * pow(ratio, 2) + 520.0f * ratio + 0.63f;
+  const float resultPcsPerFeet = 1.1f * pow(ratio, 3) - 3.8f * pow(ratio, 2) + 520.0f * ratio + 0.63f;
+  *result = resultPcsPerFeet * 3531.47f;
 
   return SensorStatus::SENSOR_STATUS_OK;
 }
 
-static SensorStatus retrieveTemperatureSensorData(float* temperatureResult, float* humidityResult)
+static SensorStatus retrieveTemperatureSensorData(float *temperatureResult, float *humidityResult)
 {
   *temperatureResult = s_DHT.readHumidity();
   *humidityResult = s_DHT.readTemperature();
@@ -79,7 +80,7 @@ static SensorStatus retrieveTemperatureSensorData(float* temperatureResult, floa
   return SensorStatus::SENSOR_STATUS_OK;
 }
 
-static SensorStatus retrieveCO2SensorData(uint16_t* co2Result, uint16_t* tvocResult, float temperature, float humidity, bool useEnvironmentalData)
+static SensorStatus retrieveCO2SensorData(uint16_t *co2Result, uint16_t *tvocResult, float temperature, float humidity, bool useEnvironmentalData)
 {
   if (!s_CCS.available())
     return SensorStatus::SENSOR_STATUS_NOT_CONNECTED;
@@ -95,21 +96,20 @@ static SensorStatus retrieveCO2SensorData(uint16_t* co2Result, uint16_t* tvocRes
   return SensorStatus::SENSOR_STATUS_OK;
 }
 
-static void retrieveSensorsData(SensorsData* result)
+static void retrieveSensorsData(SensorsData *result)
 {
   const SensorStatus particleSensorStatus = retrieveParticleSensorData(&result->ParticleConcentration);
   const SensorStatus temperatureSensorStatus = retrieveTemperatureSensorData(&result->Temperature, &result->Humidity);
   const SensorStatus co2SensorStatus = retrieveCO2SensorData(
-    &result->CO2Concentration,
-    &result->TVOCConcentration,
-    result->Temperature,
-    result->Humidity,
-    temperatureSensorStatus == SensorStatus::SENSOR_STATUS_OK);
+      &result->CO2Concentration,
+      &result->TVOCConcentration,
+      result->Temperature,
+      result->Humidity,
+      temperatureSensorStatus == SensorStatus::SENSOR_STATUS_OK);
 
-  result->SensorStatus = (
-    (particleSensorStatus << PARTICLE_SENSOR_STATUS_BITSHIFT) |
-    (temperatureSensorStatus << TEMPERATURE_SENSOR_STATUS_BITSHIFT) |
-    (co2SensorStatus << TEMPERATURE_SENSOR_STATUS_BITSHIFT));
+  result->SensorStatus = ((particleSensorStatus << PARTICLE_SENSOR_STATUS_BITSHIFT) |
+                          (temperatureSensorStatus << TEMPERATURE_SENSOR_STATUS_BITSHIFT) |
+                          (co2SensorStatus << TEMPERATURE_SENSOR_STATUS_BITSHIFT));
 }
 
 static void setupNetwork()
@@ -137,7 +137,7 @@ static void setupMQTT()
 static void setupDHT()
 {
   Serial.println(F("Starting DHT11..."));
-  
+
   s_DHT.begin();
 }
 
