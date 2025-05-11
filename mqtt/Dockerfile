@@ -5,7 +5,7 @@ WORKDIR /code/mqtt
 RUN python3 -m pip install --upgrade pip
 
 COPY ./requirements.txt /code/mqtt/requirements.txt
-RUN pip install --no-cache-dir -r /code/mqtt/requirements.txt
+RUN pip install --upgrade --no-cache-dir -r /code/mqtt/requirements.txt
 
 COPY ./src /code/mqtt
 

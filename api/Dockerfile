@@ -5,7 +5,7 @@ WORKDIR /code/api
 RUN python3 -m pip install --upgrade pip
 
 COPY ./requirements.txt /code/api/requirements.txt
-RUN pip install --no-cache-dir -r /code/api/requirements.txt
+RUN pip install --upgrade --no-cache-dir -r /code/api/requirements.txt
 
 COPY ./src /code/api
 
