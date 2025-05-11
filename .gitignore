@@ -52,3 +52,6 @@ mosquitto/
 db/
 
 **/.vscode/
+
+# flutter build
+frontend/build/
