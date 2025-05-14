@@ -21,7 +21,9 @@ GET_MEASUREMENTS_QUERY = '''
         humidity,
         co2_concentration,
         tvoc_concentration,
-        sensor_status
+        sensor_status,
+        aqi,
+        aqi_classification
     FROM measurements
     ORDER BY timestamp DESC
     LIMIT %s
@@ -35,7 +37,9 @@ GET_LATEST_MEASUREMENT_QUERY = '''
         humidity,
         co2_concentration,
         tvoc_concentration,
-        sensor_status
+        sensor_status,
+        aqi,
+        aqi_classification
     FROM measurements
     ORDER BY timestamp DESC
     LIMIT 1;'''
@@ -48,34 +52,13 @@ DB_INIT_QUERY = '''
         humidity DOUBLE,
         co2_concentration INT,
         tvoc_concentration INT,
-        sensor_status INT NOT NULL);'''
+        sensor_status INT NOT NULL,
+        aqi DOUBLE NOT NULL,
+        aqi_classification VARCHAR(32) NOT NULL);'''
 
 db: mysql.pooling.PooledMySQLConnection | mysql.connection.MySQLConnection
 api = fastapi.FastAPI()
 logger = logging.getLogger(__name__)
-
-def calculate_partial_aqi(value: float, _range: tuple[float, float]) -> float:
-    return min(100, max(0, ((value - _range[0]) / (_range[1] - _range[0])) * 100))
-
-def get_aqi_classification(aqi: float) -> str:
-    if 0 < aqi < 25:
-        return 'good'
-    elif 25 < aqi < 50:
-        return 'moderate'
-    elif 50 < aqi < 75:
-        return 'poor'
-
-    return 'hazardous'
-
-def calculate_aqi(particle_concentration: float,
-                  co2_concentration: float,
-                  tvoc_concentration: float) -> tuple[float, str]:
-    particle_aqi = calculate_partial_aqi(particle_concentration, PARTICLE_CONCENTRATION_RANGE)
-    co2_aqi = calculate_partial_aqi(co2_concentration, CO2_CONCENTRATION_RANGE)
-    tvoc_aqi = calculate_partial_aqi(tvoc_concentration, TVOC_CONCENTRATION_RANGE)
-    composite_aqi = particle_aqi * PARTICLE_AQI_WEIGHT + co2_aqi * CO2_AQI_WEIGHT + tvoc_aqi * TVOC_AQI_WEIGHT
-
-    return (composite_aqi, get_aqi_classification(composite_aqi))
 
 def get_measurement_data_from_row(row: mysql_types.RowType) -> dict[str, t.Any]:
     (timestamp,
@@ -84,15 +67,16 @@ def get_measurement_data_from_row(row: mysql_types.RowType) -> dict[str, t.Any]:
      humidity,
      co2_concentration,
      tvoc_concentration,
-     sensor_status) = row
-    air_quality_score, air_quality = calculate_aqi(particle_concentration, co2_concentration, tvoc_concentration) # type: ignore[arg-type]
+     sensor_status,
+     aqi,
+     aqi_classification) = row
 
     return {
         'timestamp': timestamp,
         'sensor_status': sensor_status,
         'air_quality_index': {
-            'score': air_quality_score,
-            'classification': air_quality},
+            'score': aqi,
+            'classification': aqi_classification},
         'particle_concentration': {
             'value': particle_concentration,
             'unit': 'ppm'},
@@ -108,6 +92,33 @@ def get_measurement_data_from_row(row: mysql_types.RowType) -> dict[str, t.Any]:
         'tvoc_concentration': {
             'value': tvoc_concentration,
             'unit': 'ppb'}}
+
+def try_get_data_rows(limit: int, skip: int) -> list[mysql_types.RowType] | None:
+    try:
+        cursor = db.cursor()
+        cursor.execute(GET_MEASUREMENTS_QUERY, (limit, skip))
+
+        return cursor.fetchall()
+    except mysql.errors.Error as e:
+        logger.error('Failed to retrieve data rows: %s', e)
+        return None
+    finally:
+        cursor.close()
+
+def try_get_data_row() -> mysql_types.RowType | None:
+    try:
+        cursor = db.cursor()
+        cursor.execute(GET_LATEST_MEASUREMENT_QUERY)
+
+        return cursor.fetchone()
+    except mysql.errors.Error as e:
+        logger.error('Failed to retrieve data row: %s', e)
+        return None
+    finally:
+        cursor.close()
+
+def make_error_response(error_msg: str, status: int = fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR) -> fastapi.Response:
+    return fastapi.Response(content={'error': error_msg}, status_code=status)
 
 @api.on_event('startup')
 def on_startup():
@@ -127,12 +138,9 @@ async def get_test():
 
 @api.get('/measurements')
 async def get_measurements(skip: int = 0, limit: int = DEFAULT_MEASUREMENTS_GET_LIMIT):
-    cursor = db.cursor()
-    cursor.execute(GET_MEASUREMENTS_QUERY, (limit, skip))
-
-    rows = cursor.fetchall()
-
-    cursor.close()
+    rows = try_get_data_rows(limit, skip)
+    if rows is None:
+        return make_error_response('Failed to retrieve data rows from database.')
 
     return {
         'first': skip,
@@ -141,11 +149,8 @@ async def get_measurements(skip: int = 0, limit: int = DEFAULT_MEASUREMENTS_GET_
 
 @api.get('/measurement')
 async def get_measurement():
-    cursor = db.cursor()
-    cursor.execute(GET_LATEST_MEASUREMENT_QUERY)
-
-    row = cursor.fetchone()
-
-    cursor.close()
+    row = try_get_data_row()
+    if row is None:
+        return make_error_response('Failed to retrieve data row from database.')
 
     return get_measurement_data_from_row(row)
