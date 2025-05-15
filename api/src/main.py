@@ -74,24 +74,13 @@ def get_measurement_data_from_row(row: mysql_types.RowType) -> dict[str, t.Any]:
     return {
         'timestamp': timestamp,
         'sensor_status': sensor_status,
-        'air_quality_index': {
-            'score': aqi,
-            'classification': aqi_classification},
-        'particle_concentration': {
-            'value': particle_concentration,
-            'unit': 'ppm'},
-        'temperature': {
-            'value': temperature,
-            'unit': 'celsius'},
-        'humidity': {
-            'value': humidity,
-            'unit': 'percent'},
-        'co2_concentration': {
-            'value': co2_concentration,
-            'unit': 'ppm'},
-        'tvoc_concentration': {
-            'value': tvoc_concentration,
-            'unit': 'ppb'}}
+        'aqi': aqi,
+        'aqi_classification': aqi_classification,
+        'particle_concentration': particle_concentration,
+        'temperature': temperature,
+        'humidity': humidity,
+        'co2_concentration':co2_concentration,
+        'tvoc_concentration': tvoc_concentration}
 
 def try_get_data_rows(limit: int, skip: int) -> list[mysql_types.RowType] | None:
     try:
