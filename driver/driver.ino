@@ -5,10 +5,13 @@
 #include <ArduinoJson.h>
 #include <stdio.h>
 
-#define NETWORK_SSID "3DS302"
-#define NETWORK_PASSWORD "3eNgEPEt"
+// #define NETWORK_SSID "3DS302"
+// #define NETWORK_PASSWORD "3eNgEPEt"
+#define NETWORK_SSID "Redmi"
+#define NETWORK_PASSWORD "hehebeniz"
 #define NETWORK_CONNECTION_CHECK_DELAY_MS 500
-#define MQTT_SERVER_ADDRESS "192.168.1.104"
+// #define MQTT_SERVER_ADDRESS "192.168.1.104"
+#define MQTT_SERVER_ADDRESS "192.168.123.77"
 #define MQTT_SERVER_PORT 1883
 #define MQTT_CLIENT_ID "SkyvaSensorMQTTClient"
 #define MQTT_TOPIC_NAME "measurements"
@@ -69,7 +72,7 @@ static void logMessage(const char *fmt, ...)
 
   va_list args;
   va_start(args, fmt);
-  vsnprintf_P(s_MessageBuffer, MAX_MSG_BUFFER_LENGTH, fmt, args);
+  vsnprintf(s_MessageBuffer, MAX_MSG_BUFFER_LENGTH, fmt, args);
   va_end(args);
 
   Serial.println(s_MessageBuffer);
@@ -139,56 +142,56 @@ static void retrieveSensorsData(SensorsData *result)
 
 static void setupNetwork()
 {
-  logMessage(F("Connecting to the network..."));
+  logMessage("Connecting to the network...");
 
   WiFi.begin(NETWORK_SSID, NETWORK_PASSWORD);
   while (WiFi.status() != WL_CONNECTED)
     delay(NETWORK_CONNECTION_CHECK_DELAY_MS);
 
-  logMessage(F("Connected to the network."));
+  logMessage("Connected to the network.");
 }
 
 static void setupMQTT()
 {
-  logMessage(F("Connecting to the MQTT server..."));
+  logMessage("Connecting to the MQTT server...");
 
   s_MQTTClient.begin(MQTT_SERVER_ADDRESS, MQTT_SERVER_PORT, s_WIFIClient);
   while (!s_MQTTClient.connect(MQTT_CLIENT_ID))
     delay(NETWORK_CONNECTION_CHECK_DELAY_MS);
 
-  logMessage(F("Connected to the MQTT server."));
+  logMessage("Connected to the MQTT server.");
 }
 
 static void setupDHT()
 {
-  logMessage(F("Starting DHT11..."));
+  logMessage("Starting DHT11...");
 
   s_DHT.begin();
 }
 
 static void setupCCS()
 {
-  logMessage(F("Starting CCS811..."));
+  logMessage("Starting CCS811...");
 
   if (!s_CCS.begin(CCS_DEVICE_ADDR))
   {
-    logMessage(F("Failed to start CCS811 sensor."));
+    logMessage("Failed to start CCS811 sensor.");
     return;
   }
 
-  logMessage(F("Waiting for CCS811 available..."));
+  logMessage("Waiting for CCS811 available...");
 }
 
 static void setupParticleSensor()
 {
-  logMessage(F("Starting particle sensor..."));
+  logMessage("Starting particle sensor...");
   pinMode(PARTICLE_SENSOR_PIN, INPUT);
 }
 
 void setup()
 {
   Serial.begin(115200);
-  logMessage(F("\nStarting driver..."));
+  logMessage("\nStarting driver...");
 
   setupNetwork();
   setupMQTT();
@@ -196,7 +199,7 @@ void setup()
   setupParticleSensor();
   setupCCS();
 
-  logMessage(F("Executing post-startup delay..."));
+  logMessage("Executing post-startup delay...");
   delay(INITIAL_DELAY);
 }
 
@@ -227,9 +230,9 @@ void loop()
   serializeJson(json, s_JSONBuffer);
 
   if (s_MQTTClient.publish(MQTT_TOPIC_NAME, s_JSONBuffer))
-    logMessage(F("Published sensor data to MQTT, timestamp: %d"), currentTime);
+    logMessage("Published sensor data to MQTT, timestamp: %d", currentTime);
   else
-    logMessage(F("Failed to publish sensor data to MQTT."));
+    logMessage("Failed to publish sensor data to MQTT.");
 
   s_StartTime = currentTime;
   s_ParticleSensorLowPulseLength = 0;

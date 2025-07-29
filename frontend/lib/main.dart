@@ -17,9 +17,9 @@ Future<void> main() async {
         Provider(
           create:
               (_) => MeasurementsService(
-                apiHost: '192.168.1.104',
+                apiHost: '192.168.123.77',
                 apiPort: 8000,
-                mqttHost: '192.168.1.104',
+                mqttHost: '192.168.123.77',
                 mqttPort: 1883,
                 mqttClientName: 'SkyvaAppMQTTClient',
               ),

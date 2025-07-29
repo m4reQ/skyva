@@ -210,7 +210,7 @@ def setup_database() -> None:
 def setup_mqtt() -> None:
     global mqtt_client
 
-    mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id='SkyvaBridgeMQTTClient')
     mqtt_client.on_connect = mqtt_connect_callback # type: ignore[assignment]
     mqtt_client.on_message = mqtt_message_callback
     mqtt_client.on_log = mqtt_log_callback
